@@ -1,0 +1,312 @@
+> data = read.csv("Oil.csv")
+> #import necessary libraries
+> library(forecast)
+> library(urca)
+> library(vars)
+> library(Metrics)
+> #set up univariate analysis
+> WTI = data$WTI
+> plot(WTI)
+> hist(WTI, breaks=20, freq=FALSE, col="blue")
+> lines (density(WTI) , col="red", lwd=2)
+> WTI <- ts(data$WTI, frequency=12, start=c(1987,5))
+> monthplot(WTI, col.base = "red")
+> seasonplot(WTI, col=rainbow(12), year.labels = TRUE)
+> t0 = c(1987,5)
+> t1 = c(2004,12)
+> t2 = c(2005,1)
+> #train and test set
+> WTItrain <- window(WTI, start=t0, end=t1)
+> WTItest <- window(WTI, start=t2)
+> #determine if differencing is needed
+> WTIADFnone <- ur.df(WTItrain, type="none", lags=12, selectlags = "AIC")
+> summary(WTIADFnone)
+
+############################################### 
+# Augmented Dickey-Fuller Test Unit Root Test # 
+############################################### 
+
+Test regression none 
+
+
+Call:
+lm(formula = z.diff ~ z.lag.1 - 1 + z.diff.lag)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-6.1656 -1.0841 -0.0703  1.1030  7.8015 
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)   
+z.lag.1      0.005009   0.005936   0.844  0.39980   
+z.diff.lag1  0.226538   0.071746   3.158  0.00185 **
+z.diff.lag2 -0.111513   0.075280  -1.481  0.14015   
+z.diff.lag3 -0.020168   0.078722  -0.256  0.79807   
+z.diff.lag4 -0.202937   0.076697  -2.646  0.00881 **
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 1.912 on 194 degrees of freedom
+Multiple R-squared:  0.09877,	Adjusted R-squared:  0.07554 
+F-statistic: 4.252 on 5 and 194 DF,  p-value: 0.001084
+
+
+Value of test-statistic is: 0.8438 
+
+Critical values for test statistics: 
+      1pct  5pct 10pct
+tau1 -2.58 -1.95 -1.62
+
+> WTIADFdrift <- ur.df(WTItrain, type="drift", lags=12, selectlags = "AIC")
+> summary(WTIADFdrift)
+
+############################################### 
+# Augmented Dickey-Fuller Test Unit Root Test # 
+############################################### 
+
+Test regression drift 
+
+
+Call:
+lm(formula = z.diff ~ z.lag.1 + 1 + z.diff.lag)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-6.0199 -1.1408 -0.0648  1.0987  7.7304 
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)   
+(Intercept)  0.478847   0.522781   0.916  0.36083   
+z.lag.1     -0.015008   0.022646  -0.663  0.50829   
+z.diff.lag1  0.241725   0.073665   3.281  0.00123 **
+z.diff.lag2 -0.092686   0.078066  -1.187  0.23658   
+z.diff.lag3 -0.007962   0.079875  -0.100  0.92070   
+z.diff.lag4 -0.185578   0.079034  -2.348  0.01988 * 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 1.913 on 193 degrees of freedom
+Multiple R-squared:  0.09886,	Adjusted R-squared:  0.07551 
+F-statistic: 4.235 on 5 and 193 DF,  p-value: 0.001124
+
+
+Value of test-statistic is: -0.6627 0.7752 
+
+Critical values for test statistics: 
+      1pct  5pct 10pct
+tau2 -3.46 -2.88 -2.57
+phi1  6.52  4.63  3.81
+
+> WTIADFtrend <- ur.df(WTItrain, type="trend", lags=12, selectlags = "AIC")
+> summary(WTIADFtrend)
+
+############################################### 
+# Augmented Dickey-Fuller Test Unit Root Test # 
+############################################### 
+
+Test regression trend 
+
+
+Call:
+lm(formula = z.diff ~ z.lag.1 + 1 + tt + z.diff.lag)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-5.9306 -1.0722 -0.0144  1.0632  8.4571 
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  0.984046   0.473026   2.080 0.038803 *  
+z.lag.1     -0.071163   0.024651  -2.887 0.004330 ** 
+tt           0.006488   0.002925   2.219 0.027672 *  
+z.diff.lag   0.273579   0.072233   3.787 0.000203 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 1.913 on 195 degrees of freedom
+Multiple R-squared:  0.08992,	Adjusted R-squared:  0.07591 
+F-statistic: 6.422 on 3 and 195 DF,  p-value: 0.0003604
+
+
+Value of test-statistic is: -2.8868 3.0806 4.3791 
+
+Critical values for test statistics: 
+      1pct  5pct 10pct
+tau3 -3.99 -3.43 -3.13
+phi2  6.22  4.75  4.07
+phi3  8.43  6.49  5.47
+
+> #create difference
+> DWTI <- diff(WTItrain)
+> DWTI <- ur.df(DWTI, type="none", lags=12, selectlags="AIC")
+> summary(DWTI)
+
+############################################### 
+# Augmented Dickey-Fuller Test Unit Root Test # 
+############################################### 
+
+Test regression none 
+
+
+Call:
+lm(formula = z.diff ~ z.lag.1 - 1 + z.diff.lag)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-6.0202 -0.9836  0.0828  1.2221  7.9161 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+z.lag.1     -1.07613    0.12653  -8.505 4.84e-15 ***
+z.diff.lag1  0.30999    0.10908   2.842  0.00497 ** 
+z.diff.lag2  0.20964    0.09411   2.228  0.02705 *  
+z.diff.lag3  0.19420    0.07609   2.552  0.01147 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 1.915 on 194 degrees of freedom
+Multiple R-squared:  0.4058,	Adjusted R-squared:  0.3936 
+F-statistic: 33.13 on 4 and 194 DF,  p-value: < 2.2e-16
+
+
+Value of test-statistic is: -8.5049 
+
+Critical values for test statistics: 
+      1pct  5pct 10pct
+tau1 -2.58 -1.95 -1.62
+
+> DWTI <- diff(WTItrain)
+> #implement arima on the differenced TS
+> aicarima = auto.arima(DWTI, d=0, max.p=5, max.q=5, max.order=10, seasonal=FALSE, stepwise=FALSE, ic="aic")
+> aicarima
+Series: DWTI 
+ARIMA(0,0,4) with zero mean 
+
+Coefficients:
+         ma1      ma2      ma3      ma4
+      0.2376  -0.0652  -0.0582  -0.1933
+s.e.  0.0681   0.0702   0.0728   0.0649
+
+sigma^2 estimated as 3.482:  log likelihood=-429.13
+AIC=868.26   AICc=868.55   BIC=885.02
+> bicarima = auto.arima(DWTI, d=0, max.p=5, max.q=5, max.order=10, seasonal=FALSE, stepwise=FALSE, ic="bic")
+> bicarima
+Series: DWTI 
+ARIMA(0,0,1) with zero mean 
+
+Coefficients:
+         ma1
+      0.2602
+s.e.  0.0707
+
+sigma^2 estimated as 3.581:  log likelihood=-433.52
+AIC=871.05   AICc=871.1   BIC=877.75
+> #Transition to bivariate forecast
+> Brent=data$Brent
+> Brent <- ts(Brent, frequency=12, start=c(1987,5))
+> Brenttrain <- window(Brent, start=t0, end=t1)
+> Brenttest <- window(Brent, start=t2)
+> dflevel <- data.frame(WTItrain, Brenttrain)
+> #Run Johansen Procedure to determine if co-integration is possible
+> vecm <- ca.jo(dflevel, type="eigen", ecdet="const", K=2, spec="transitory")
+> summary(vecm)
+
+###################### 
+# Johansen-Procedure # 
+###################### 
+
+Test type: maximal eigenvalue statistic (lambda max) , without linear trend and constant in cointegration 
+
+Eigenvalues (lambda):
+[1]  1.584015e-01  1.341374e-02 -2.034015e-17
+
+Values of teststatistic and critical values of test:
+
+          test 10pct  5pct  1pct
+r <= 1 |  2.84  7.52  9.24 12.97
+r = 0  | 36.21 13.75 15.67 20.20
+
+Eigenvectors, normalised to first column:
+(These are the cointegration relations)
+
+              WTItrain.l1 Brenttrain.l1   constant
+WTItrain.l1     1.0000000      1.000000  1.0000000
+Brenttrain.l1  -1.0672877     -0.697941 -0.7664606
+constant       -0.1080767     -8.888882 -2.5618600
+
+Weights W:
+(This is the loading matrix)
+
+             WTItrain.l1 Brenttrain.l1      constant
+WTItrain.d     0.2167937   -0.08647796 -3.867927e-16
+Brenttrain.d   0.5577903   -0.08353248 -1.237581e-15
+
+> #We've determined there's 1 cointegration relationship, thus we cointegrate
+> vecm.rls <- cajorls(vecm, r = 1)
+> error <- vecm.rls$rlm$model["ect1"]
+> error <- ts(error, frequency = 12, start = c(1987, 5))
+> error <- as.vector(error)
+> errorADF = ur.df(error, type="none", lags=12, selectlags = "AIC")
+> plot(error)
+> ggAcf(error)
+> ggPacf(error, lags="12")
+> cajorls(vecm)
+$rlm
+
+Call:
+lm(formula = substitute(form1), data = data.mat)
+
+Coefficients:
+                WTItrain.d  Brenttrain.d
+ect1             0.2168      0.5578     
+WTItrain.dl1    -0.2347     -0.2406     
+Brenttrain.dl1   0.4679      0.4620     
+
+
+$beta
+                    ect1
+WTItrain.l1    1.0000000
+Brenttrain.l1 -1.0672877
+constant      -0.1080767
+
+> coef(summary(cajorls(vecm)$rlm))
+Response WTItrain.d :
+                 Estimate Std. Error    t value   Pr(>|t|)
+ect1            0.2167937  0.1847225  1.1736181 0.24189662
+WTItrain.dl1   -0.2347383  0.2448248 -0.9588013 0.33877739
+Brenttrain.dl1  0.4679492  0.2350365  1.9909637 0.04780003
+
+Response Brenttrain.d :
+                 Estimate Std. Error    t value    Pr(>|t|)
+ect1            0.5577903  0.1967175  2.8354890 0.005029451
+WTItrain.dl1   -0.2406352  0.2607224 -0.9229555 0.357104961
+Brenttrain.dl1  0.4619795  0.2502986  1.8457131 0.066362008
+
+> var.model = vec2var(vecm)
+> H = 12
+> fc <- predict(var.model, n.ahead=H)
+> WTI_forecast <- ts(fc$fcst$WTItrain[1:H,1], frequency=12, start=t2)
+> Brent_forecast <- ts(fc$fcst$Brenttrain[1:H,1], frequency=12, start=t2)
+> Brent_forecast
+          Jan      Feb      Mar      Apr      May      Jun      Jul      Aug      Sep      Oct      Nov      Dec
+2005 39.69222 40.04209 40.31017 40.48399 40.59152 40.65702 40.69671 40.72072 40.73523 40.74400 40.74930 40.75250
+> s = paste0("WTI Forecast RMSE: ", rmse(WTItest, WTI_forecast))
+> b = paste0("MAE: ", mae(WTItest, WTI_forecast))
+> c = paste0("Brent Forecast RMSE: ", rmse(Brenttest, Brent_forecast))
+> l = paste0("MAE: ", mae(Brenttest, Brent_forecast))
+> print(cat(s, b))
+WTI Forecast RMSE: 14.2892258231529 MAE: 13.0481743601118NULL
+> print(cat(c, l))
+Brent Forecast RMSE: 15.0014855012725 MAE: 13.9037113868338NULL
+> #Post Class Analysis, I figured I could do better than ~15 RMSE & ~14 MAE
+> Brentunivariateforecast = forecast(auto.arima(Brenttrain, d=0, max.p=5, max.q=5, max.order=10, seasonal=FALSE, stepwise=FALSE, ic="aic"), h = 12)
+> univariateresults = Brentunivariateforecast$mean
+> s = paste0("Brent Forecast RMSE: ", rmse(Brenttest, univariateresults))
+> b = paste0("MAE: ", mae(Brenttest, univariateresults))
+> print(cat(s, b))
+Brent Forecast RMSE: 19.0355032025771 MAE: 17.7442981695757NULL
+> f = nnetar(Brenttrain)
+> m = forecast(f, h=12)
+> #NNETAR Forecast RMSE:
+> rmse(WTItest, m$mean)
+[1] 21.45706
